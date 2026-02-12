@@ -2,7 +2,7 @@ package com.example.service;
 
 import com.example.config.BotConfig;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
-
+import java.util.List;
 import java.util.Arrays;
 
 import com.example.menu.*;
@@ -14,10 +14,6 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
-
-import static org.glassfish.grizzly.ProcessorExecutor.execute;
-
-//import static jdk.javadoc.internal.tool.Main.execute;
 
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
@@ -52,7 +48,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             } catch (TelegramApiException e) {
                 e.printStackTrace();
             }
-            return; // выходим, чтобы не обрабатывать дальше
+            return;
         }
 
         if (update.getMessage().hasDocument()) {
@@ -61,7 +57,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             StateManager.saveFile(chatId, fileId, "DOCUMENT");
 
-            // если бот ждал файл
             if (StateManager.getState(chatId).equals("WAIT_FILE")) {
                 StateManager.setState(chatId, "PRINT_COPIES_CONFIRM");
                 executeMessage(PrintMenu.confirmStep(chatId));
@@ -70,10 +65,9 @@ public class TelegramBotService extends TelegramLongPollingBot {
             }
             return;
         }
-        // 🖼 Обработка фото (картинки, скриншоты)
+
         if (update.getMessage().hasPhoto()) {
             Long chatId = update.getMessage().getChatId();
-            // цикл по всем фото в сообщении
             update.getMessage().getPhoto().forEach(photoSize -> {
                 String fileId = photoSize.getFileId();
                 StateManager.saveFile(chatId, fileId, "PHOTO");
@@ -87,8 +81,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
             return;
         }
 
-
-        // --- Обработка текста ---
         if (!update.getMessage().hasText()) return;
 
         Long chatId = update.getMessage().getChatId();
@@ -167,35 +159,25 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             case "Отменить":
             case "Bekor qilish":
-                StateManager.resetDoc(chatId); // очищаем все данные заказа
-                StateManager.setState(chatId, "MAIN_MENU"); // возвращаем в главное меню
+                StateManager.resetDoc(chatId);
+                StateManager.setState(chatId, "MAIN_MENU");
                 executeMessage(MainMenu.getMenu(chatId, StateManager.getLang(chatId)));
-
-                //executeMessage(MainMenu.getMenu(chatId)); // показываем главное меню
                 break;
-
 
             default:
                 if (state.equals("PRINT_COPIES")) {
-                    // пользователь ввёл число копий
                     StateManager.appendDoc(chatId, "Количество копий: " + text);
-
-                    // переводим в новое состояние — ожидание файла
                     StateManager.setState(chatId, "WAIT_FILE");
-
-                    // выводим сообщение пользователю
                     sendMessage(chatId, "📎 Вложите файл для печати");
                 } else {
                     sendMessage(chatId, "Пожалуйста, выберите пункт меню.");
                 }
-
         }
     }
 
     private void sendToAdmin(Long chatId, String username, String firstName, String lastName) {
         Long adminId = config.getAdminId();
         String userDoc = StateManager.getDoc(chatId);
-        String fileId = StateManager.getFile(chatId);
 
         StringBuilder sb = new StringBuilder();
         sb.append("📩 Новый заказ!\n\n");
@@ -211,67 +193,50 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         List<String> files = StateManager.getFiles(chatId);
         String fileType = StateManager.getFileType(chatId);
+
         if (!files.isEmpty()) {
-            for (String fileId : files) {
+            for (String fId : files) {
                 if ("DOCUMENT".equals(fileType)) {
                     SendDocument doc = new SendDocument();
                     doc.setChatId(adminId.toString());
-                    doc.setDocument(new InputFile(fileId));
+                    doc.setDocument(new InputFile(fId));
                     executeMessage(doc);
                 } else if ("PHOTO".equals(fileType)) {
                     SendPhoto photo = new SendPhoto();
                     photo.setChatId(adminId.toString());
-                    photo.setPhoto(new InputFile(fileId));
+                    photo.setPhoto(new InputFile(fId));
                     executeMessage(photo);
                 }
             }
         }
+    }
 
-
-//        if (fileId != null) {
-//            if (StateManager.getFileType(chatId).equals("DOCUMENT")) {
-//                SendDocument doc = new SendDocument();
-//                doc.setChatId(adminId.toString());
-//                doc.setDocument(new InputFile(fileId));
-//                executeMessage(doc);
-//            }
-        // если это фото
-        else if (StateManager.getFileType(chatId).equals("PHOTO")) {
-            SendPhoto photo = new SendPhoto();
-            photo.setChatId(adminId.toString());
-            photo.setPhoto(new InputFile(fileId));
-            executeMessage(photo);
+    private void executeMessage(SendPhoto photo) {
+        try {
+            execute(photo);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
         }
     }
-}
 
-private void executeMessage(SendPhoto photo) {
-    try {
-        execute(photo);
-    } catch (TelegramApiException e) {
-        e.printStackTrace();
+    private void executeMessage(SendMessage message) {
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void executeMessage(SendDocument document) {
+        try {
+            execute(document);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendMessage(Long chatId, String text) {
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        executeMessage(message);
     }
 }
-
-
-private void executeMessage(SendMessage message) {
-    try {
-        execute(message);
-    } catch (TelegramApiException e) {
-        e.printStackTrace();
-    }
-}
-
-private void executeMessage(SendDocument document) {
-    try {
-        execute(document);
-    } catch (TelegramApiException e) {
-        e.printStackTrace();
-    }
-}
-
-private void sendMessage(Long chatId, String text) {
-    SendMessage message = new SendMessage(chatId.toString(), text);
-    executeMessage(message);
-}
-

@@ -2,6 +2,7 @@ package com.example.menu;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class StateManager {
@@ -10,7 +11,7 @@ public class StateManager {
     private static final Map<Long, StringBuilder> userDocs = new HashMap<>();
     private static final Map<Long, String> userLang = new HashMap<>();
     private static final Map<Long, String> fileMap = new HashMap<>();
-    private static Map<Long, String> fileIds = new HashMap<>();
+    private static Map<Long, List<String>> fileIds = new HashMap<>();
     private static Map<Long, String> fileTypes = new HashMap<>();
 
     // ------------------ STATE ------------------
