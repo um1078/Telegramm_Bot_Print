@@ -1,9 +1,6 @@
 package com.example.menu;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 public class StateManager {
 
@@ -11,8 +8,9 @@ public class StateManager {
     private static final Map<Long, StringBuilder> userDocs = new HashMap<>();
     private static final Map<Long, String> userLang = new HashMap<>();
     private static final Map<Long, String> fileMap = new HashMap<>();
-    private static Map<Long, List<String>> fileIds = new HashMap<>();
+    //private static Map<Long, List<String>> fileIds = new HashMap<>();
     private static Map<Long, String> fileTypes = new HashMap<>();
+    private static final Map<Long, Set<String>> fileIds = new HashMap<>();
 
     // ------------------ STATE ------------------
     public static void setState(Long chatId, String state) {
@@ -33,13 +31,15 @@ public class StateManager {
     }
 
     // ------------------ FILE ------------------
+
+
     public static void saveFile(Long chatId, String fileId, String type) {
-        fileIds.computeIfAbsent(chatId, k -> new ArrayList<>()).add(fileId);
+        fileIds.computeIfAbsent(chatId, k -> new HashSet<>()).add(fileId);
         fileTypes.put(chatId, type);
     }
 
-    public static List<String> getFiles(Long chatId) {
-        return fileIds.getOrDefault(chatId, new ArrayList<>());
+    public static Set<String> getFiles(Long chatId) {
+        return fileIds.getOrDefault(chatId, new HashSet<>());
     }
 
     public static String getFileType(Long chatId) {

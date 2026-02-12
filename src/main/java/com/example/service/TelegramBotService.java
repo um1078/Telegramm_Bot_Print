@@ -2,8 +2,10 @@ package com.example.service;
 
 import com.example.config.BotConfig;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
+
 import java.util.List;
 import java.util.Arrays;
+import java.util.Set;
 
 import com.example.menu.*;
 import org.springframework.stereotype.Service;
@@ -12,6 +14,7 @@ import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
+import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
@@ -68,10 +71,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         if (update.getMessage().hasPhoto()) {
             Long chatId = update.getMessage().getChatId();
-            update.getMessage().getPhoto().forEach(photoSize -> {
-                String fileId = photoSize.getFileId();
+            List<PhotoSize> photos = update.getMessage().getPhoto();
+            if (!photos.isEmpty()) {
+                String fileId = photos.get(photos.size() - 1).getFileId(); // берём самый большой размер
                 StateManager.saveFile(chatId, fileId, "PHOTO");
-            });
+            }
             if (StateManager.getState(chatId).equals("WAIT_FILE")) {
                 StateManager.setState(chatId, "PRINT_COPIES_CONFIRM");
                 executeMessage(PrintMenu.confirmStep(chatId));
@@ -80,6 +84,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             }
             return;
         }
+
 
         if (!update.getMessage().hasText()) return;
 
@@ -166,8 +171,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             default:
                 if (state.equals("PRINT_COPIES")) {
+                    // пользователь ввёл число копий
                     StateManager.appendDoc(chatId, "Количество копий: " + text);
+                    // переводим в новое состояние — ожидание файла
                     StateManager.setState(chatId, "WAIT_FILE");
+                    // выводим сообщение пользователю
                     sendMessage(chatId, "📎 Вложите файл для печати");
                 } else {
                     sendMessage(chatId, "Пожалуйста, выберите пункт меню.");
@@ -177,7 +185,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
     private void sendToAdmin(Long chatId, String username, String firstName, String lastName) {
         Long adminId = config.getAdminId();
-        String userDoc = StateManager.getDoc(chatId);
+        String userDoc = StateManager.getDoc(chatId); // тут уже есть "Количество копий: X"
 
         StringBuilder sb = new StringBuilder();
         sb.append("📩 Новый заказ!\n\n");
@@ -187,11 +195,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
         sb.append("• Имя: ").append(firstName != null ? firstName : "нет").append("\n");
         sb.append("• Фамилия: ").append(lastName != null ? lastName : "нет").append("\n\n");
         sb.append("🧾 Параметры заказа:\n");
-        sb.append(userDoc);
+        sb.append(userDoc); // здесь будет и число копий
 
         executeMessage(new SendMessage(adminId.toString(), sb.toString()));
 
-        List<String> files = StateManager.getFiles(chatId);
+        Set<String> files = com.example.menu.StateManager.getFiles(chatId);
         String fileType = StateManager.getFileType(chatId);
 
         if (!files.isEmpty()) {
@@ -210,6 +218,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             }
         }
     }
+
 
     private void executeMessage(SendPhoto photo) {
         try {
