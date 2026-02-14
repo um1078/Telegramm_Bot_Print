@@ -62,33 +62,44 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             if (StateManager.getState(chatId).equals("WAIT_FILE")) {
                 StateManager.setState(chatId, "PRINT_COPIES_CONFIRM");
-                executeMessage(PrintMenu.confirmStep(chatId));
+                executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
             } else {
-                sendMessage(chatId, "Файл получен.");
+                String lang = StateManager.getLang(chatId);
+                if ("O‘zbekcha".equals(lang)) {
+                    sendMessage(chatId, "📄 Hujjat qabul qilindi.");
+                } else {
+                    sendMessage(chatId, "📄 Файл получен.");
+                }
+                return;
             }
-            return;
         }
 
         if (update.getMessage().hasPhoto()) {
-            Long chatId = update.getMessage().getChatId();
+            long chatId = update.getMessage().getChatId();
             List<PhotoSize> photos = update.getMessage().getPhoto();
             if (!photos.isEmpty()) {
                 String fileId = photos.get(photos.size() - 1).getFileId(); // берём самый большой размер
-                StateManager.saveFile(chatId, fileId, "PHOTO");
+                com.example.menu.StateManager.saveFile(chatId, fileId, "PHOTO");
             }
             if (StateManager.getState(chatId).equals("WAIT_FILE")) {
                 StateManager.setState(chatId, "PRINT_COPIES_CONFIRM");
-                executeMessage(PrintMenu.confirmStep(chatId));
+                executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
             } else {
-                sendMessage(chatId, "Фото/скриншоты получены.");
+                String lang = StateManager.getLang(chatId);
+                if ("O‘zbekcha".equals(lang)) {
+                    sendMessage(chatId, "🖼️ Foto/screen qabul qilindi.");
+                } else {
+                    sendMessage(chatId, "🖼️ Фото/скриншоты получены.");
+                }
+                return;
+
             }
-            return;
         }
 
 
         if (!update.getMessage().hasText()) return;
 
-        Long chatId = update.getMessage().getChatId();
+        long chatId = update.getMessage().getChatId();
         String username = update.getMessage().getFrom().getUserName();
         String firstName = update.getMessage().getFrom().getFirstName();
         String lastName = update.getMessage().getFrom().getLastName();
@@ -127,7 +138,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             case "Распечатать документ":
             case "Hujjatni chop etish":
                 StateManager.setState(chatId, "PRINT");
-                executeMessage(PrintMenu.getFirstStep(chatId));
+                executeMessage(PrintMenu.getFirstStep(chatId, StateManager.getLang(chatId)));
                 break;
 
             case "Цветная печать":
@@ -136,7 +147,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
             case "Qora-oq chop etish":
                 StateManager.appendDoc(chatId, "Тип печати: " + text);
                 StateManager.setState(chatId, "PRINT_CONFIRM");
-                executeMessage(PrintMenu.confirmStep(chatId));
+                executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
                 break;
 
             case "В виде книжки":
@@ -145,19 +156,19 @@ public class TelegramBotService extends TelegramLongPollingBot {
             case "A4 FORMATI":
                 StateManager.appendDoc(chatId, "Формат: " + text);
                 StateManager.setState(chatId, "PRINT_CONFIRM2");
-                executeMessage(PrintMenu.confirmStep(chatId));
+                executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
                 break;
 
             case "Подтвердить":
             case "Tasdiqlash":
                 if (state.equals("PRINT_CONFIRM")) {
                     StateManager.setState(chatId, "PRINT_NEXT");
-                    executeMessage(PrintMenu.getSecondStep(chatId));
+                    executeMessage(PrintMenu.getSecondStep(chatId, StateManager.getLang(chatId)));
                 } else if (state.equals("PRINT_CONFIRM2")) {
                     StateManager.setState(chatId, "PRINT_COPIES");
-                    executeMessage(PrintMenu.getCopiesStep(chatId));
+                    executeMessage(PrintMenu.getCopiesStep(chatId, StateManager.getLang(chatId)));
                 } else if (state.equals("PRINT_COPIES_CONFIRM")) {
-                    executeMessage(PrintMenu.getSummary(chatId));
+                    executeMessage(PrintMenu.getSummary(chatId, StateManager.getLang(chatId)));
                     sendToAdmin(chatId, username, firstName, lastName);
                 }
                 break;
@@ -171,81 +182,92 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
             default:
                 if (state.equals("PRINT_COPIES")) {
-                    // пользователь ввёл число копий
-                    StateManager.appendDoc(chatId, "Количество копий: " + text);
-                    // переводим в новое состояние — ожидание файла
-                    StateManager.setState(chatId, "WAIT_FILE");
-                    // выводим сообщение пользователю
-                    sendMessage(chatId, "📎 Вложите файл для печати");
+                    lang = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(lang)) {
+                        StateManager.appendDoc(chatId, "Nusxalar soni: " + text);
+                        StateManager.setState(chatId, "WAIT_FILE");
+                        sendMessage(chatId, "📎 Chop etish uchun faylni yuboring");
+                    } else {
+                        StateManager.appendDoc(chatId, "Количество копий: " + text);
+                        StateManager.setState(chatId, "WAIT_FILE");
+                        sendMessage(chatId, "📎 Вложите файл для печати");
+                    }
                 } else {
-                    sendMessage(chatId, "Пожалуйста, выберите пункт меню.");
+                     lang = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(lang)) {
+                        sendMessage(chatId, "Iltimos, menyudan tanlang.");
+                    } else {
+                        sendMessage(chatId, "Пожалуйста, выберите пункт меню.");
+                    }
                 }
+                break;
         }
     }
 
-    private void sendToAdmin(Long chatId, String username, String firstName, String lastName) {
-        Long adminId = config.getAdminId();
-        String userDoc = StateManager.getDoc(chatId); // тут уже есть "Количество копий: X"
 
-        StringBuilder sb = new StringBuilder();
-        sb.append("📩 Новый заказ!\n\n");
-        sb.append("👤 Пользователь:\n");
-        sb.append("• Chat ID: ").append(chatId).append("\n");
-        sb.append("• Username: @").append(username != null ? username : "нет").append("\n");
-        sb.append("• Имя: ").append(firstName != null ? firstName : "нет").append("\n");
-        sb.append("• Фамилия: ").append(lastName != null ? lastName : "нет").append("\n\n");
-        sb.append("🧾 Параметры заказа:\n");
-        sb.append(userDoc); // здесь будет и число копий
+        private void sendToAdmin (Long chatId, String username, String firstName, String lastName){
+            Long adminId = config.getAdminId();
+            String userDoc = StateManager.getDoc(chatId); // тут уже есть "Количество копий: X"
 
-        executeMessage(new SendMessage(adminId.toString(), sb.toString()));
+            StringBuilder sb = new StringBuilder();
+            sb.append("📩 Новый заказ!\n\n");
+            sb.append("👤 Пользователь:\n");
+            sb.append("• Chat ID: ").append(chatId).append("\n");
+            sb.append("• Username: @").append(username != null ? username : "нет").append("\n");
+            sb.append("• Имя: ").append(firstName != null ? firstName : "нет").append("\n");
+            sb.append("• Фамилия: ").append(lastName != null ? lastName : "нет").append("\n\n");
+            sb.append("🧾 Параметры заказа:\n");
+            sb.append(userDoc); // здесь будет и число копий
 
-        Set<String> files = com.example.menu.StateManager.getFiles(chatId);
-        String fileType = StateManager.getFileType(chatId);
+            executeMessage(new SendMessage(adminId.toString(), sb.toString()));
 
-        if (!files.isEmpty()) {
-            for (String fId : files) {
-                if ("DOCUMENT".equals(fileType)) {
-                    SendDocument doc = new SendDocument();
-                    doc.setChatId(adminId.toString());
-                    doc.setDocument(new InputFile(fId));
-                    executeMessage(doc);
-                } else if ("PHOTO".equals(fileType)) {
-                    SendPhoto photo = new SendPhoto();
-                    photo.setChatId(adminId.toString());
-                    photo.setPhoto(new InputFile(fId));
-                    executeMessage(photo);
+            Set<String> files = com.example.menu.StateManager.getFiles(chatId);
+            String fileType = StateManager.getFileType(chatId);
+
+            if (!files.isEmpty()) {
+                for (String fId : files) {
+                    if ("DOCUMENT".equals(fileType)) {
+                        SendDocument doc = new SendDocument();
+                        doc.setChatId(adminId.toString());
+                        doc.setDocument(new InputFile(fId));
+                        executeMessage(doc);
+                    } else if ("PHOTO".equals(fileType)) {
+                        SendPhoto photo = new SendPhoto();
+                        photo.setChatId(adminId.toString());
+                        photo.setPhoto(new InputFile(fId));
+                        executeMessage(photo);
+                    }
                 }
             }
         }
-    }
 
 
-    private void executeMessage(SendPhoto photo) {
-        try {
-            execute(photo);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
+        private void executeMessage (SendPhoto photo){
+            try {
+                execute(photo);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void executeMessage (SendMessage message){
+            try {
+                execute(message);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void executeMessage (SendDocument document){
+            try {
+                execute(document);
+            } catch (TelegramApiException e) {
+                e.printStackTrace();
+            }
+        }
+
+        private void sendMessage (Long chatId, String text){
+            SendMessage message = new SendMessage(chatId.toString(), text);
+            executeMessage(message);
         }
     }
-
-    private void executeMessage(SendMessage message) {
-        try {
-            execute(message);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void executeMessage(SendDocument document) {
-        try {
-            execute(document);
-        } catch (TelegramApiException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private void sendMessage(Long chatId, String text) {
-        SendMessage message = new SendMessage(chatId.toString(), text);
-        executeMessage(message);
-    }
-}

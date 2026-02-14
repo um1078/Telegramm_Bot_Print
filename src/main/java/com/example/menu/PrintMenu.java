@@ -10,8 +10,8 @@ import java.util.List;
 public class PrintMenu {
 
     // Первый шаг: выбор цветной или ч/б печати
-    public static SendMessage getFirstStep(Long chatId) {
-        String lang = StateManager.getLang(chatId);
+    public static SendMessage getFirstStep(Long chatId, String lang) {
+        //String lang = StateManager.getLang(chatId);
 
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         markup.setResizeKeyboard(true);
@@ -30,14 +30,14 @@ public class PrintMenu {
             ));
             SendMessage message = new SendMessage(chatId.toString(), "Chop etish turini tanlang:");
             message.setReplyMarkup(markup);
-            StateManager.setState(chatId, "PRINT_CONFIRM");
+            com.example.menu.StateManager.setState(chatId, "PRINT_CONFIRM");
             return message;
         }
     }
 
     // Меню подтверждения
-    public static SendMessage confirmStep(Long chatId) {
-        String lang = StateManager.getLang(chatId);
+    public static SendMessage confirmStep(Long chatId, String lang) {
+        //String lang = StateManager.getLang(chatId);
 
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         markup.setResizeKeyboard(true);
@@ -60,8 +60,8 @@ public class PrintMenu {
     }
 
     // Второй шаг: книжка / A4
-    public static SendMessage getSecondStep(Long chatId) {
-        String lang = StateManager.getLang(chatId);
+    public static SendMessage getSecondStep(Long chatId, String lang) {
+        //String lang = StateManager.getLang(chatId);
 
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         markup.setResizeKeyboard(true);
@@ -86,42 +86,49 @@ public class PrintMenu {
     }
 
     // Третий шаг: количество копий
-    public static SendMessage getCopiesStep(Long chatId) {
-        String lang = StateManager.getLang(chatId);
-
-        if (lang.equals("Русский")) {
-            SendMessage message = new SendMessage(chatId.toString(),
-                    "Введите количество копий ЦИФРОЙ:");
-            StateManager.setState(chatId, "PRINT_COPIES");
-            return message;
+    public static SendMessage getCopiesStep(Long chatId, String lang) {
+        String text;
+        if ("Русский".equals(lang)) {
+            text = "Введите количество копий ЦИФРОЙ:";
+        } else if ("O‘zbekcha".equals(lang)) {
+            text = "Nusxalar sonini RAKAM bilan kiriting:";
         } else {
-            SendMessage message = new SendMessage(chatId.toString(),
-                    "Nusxalar sonini RAKAM bilan kiriting:");
-            StateManager.setState(chatId, "PRINT_COPIES");
-            return message;
+            text = "Введите количество копий:";
         }
+        return new SendMessage(chatId.toString(), text);
     }
 
     // Финальный шаг: показать все ответы
-    public static SendMessage getSummary(Long chatId) {
-        String lang = StateManager.getLang(chatId);
+    public static SendMessage getSummary(Long chatId, String lang) {
         String summary;
-        if (lang.equals("Русский")) {
-            summary = "✅ Ваши параметры печати:\n" + StateManager.getDoc(chatId) +
-                    "\n📎 Ваш файл отправлен на обработку Админу .\nСпасибо за использование сервиса!";
-        } else {
+        if ("Русский".equals(lang)) {
+            summary = "✅ Ваши параметры печати:\n" +
+                    com.example.menu.StateManager.getDoc(chatId) +
+                    "\n📎 Ваш файл отправлен на обработку Админу.\nСпасибо за использование сервиса!";
+        } else if ("O‘zbekcha".equals(lang)) {
             summary = "✅ Sizning chop etish parametrlari:\n" +
-                    StateManager.getDoc(chatId) +
-                    "\n📎 Faylingiz Administratorga ko‘rib chiqish uchun yuborildi».\nXizmatimizdan foydalanganingiz uchun rahmat!";
+                    com.example.menu.StateManager.getDoc(chatId) +
+                    "\n📎 Faylingiz Administratorga ko‘rib chiqish uchun yuborildi.\nXizmatimizdan foydalanganingiz uchun rahmat!";
+        } else {
+            summary = "✅ Ваши параметры печати:\n" +
+                    com.example.menu.StateManager.getDoc(chatId) +
+                    "\n📎 Ваш файл отправлен на обработку Админу.\nСпасибо за использование сервиса!";
         }
+
         // Добавляем клавиатуру с кнопками
         ReplyKeyboardMarkup markup = new ReplyKeyboardMarkup();
         markup.setResizeKeyboard(true);
-        if (lang.equals("Русский")) {
-            markup.setKeyboard(List.of(new KeyboardRow(List.of(new KeyboardButton("Закончить"), new KeyboardButton("Старт")))));
-        } else {
-            markup.setKeyboard(List.of(new KeyboardRow(List.of(new KeyboardButton("Tugatish"), new KeyboardButton("Boshlash")))));
+
+        if ("Русский".equals(lang)) {
+            markup.setKeyboard(List.of(
+                    new KeyboardRow(List.of(new KeyboardButton("Закончить"), new KeyboardButton("Старт")))
+            ));
+        } else if ("O‘zbekcha".equals(lang)) {
+            markup.setKeyboard(List.of(
+                    new KeyboardRow(List.of(new KeyboardButton("Tugatish"), new KeyboardButton("Boshlash")))
+            ));
         }
+
         SendMessage message = new SendMessage(chatId.toString(), summary);
         message.setReplyMarkup(markup);
         return message;
