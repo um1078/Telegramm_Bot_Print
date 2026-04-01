@@ -2,6 +2,8 @@ package com.example.service;
 
 import com.example.config.BotConfig;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
+import com.example.menu.InsuranceMenu;
+
 
 import java.util.List;
 import java.util.Arrays;
@@ -17,6 +19,10 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+
+//import static com.example.menu.StateManager.fileTypes;
+
+//import static com.example.menu.StateManager.fileTypes;
 
 @Service
 public class TelegramBotService extends TelegramLongPollingBot {
@@ -57,12 +63,17 @@ public class TelegramBotService extends TelegramLongPollingBot {
         if (update.getMessage().hasDocument()) {
             Long chatId = update.getMessage().getChatId();
             String fileId = update.getMessage().getDocument().getFileId();
-
             StateManager.saveFile(chatId, fileId, "DOCUMENT");
 
             if (StateManager.getState(chatId).equals("WAIT_FILE")) {
                 StateManager.setState(chatId, "PRINT_COPIES_CONFIRM");
                 executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
+            } else if (StateManager.getState(chatId).equals("INSURANCE_DOCS")) {
+                StateManager.appendDoc(chatId, "Документы получены");
+                StateManager.setState(chatId, "INSURANCE_CONFIRM");
+                executeMessage(InsuranceMenu.getConfirmMenu(chatId, StateManager.getLang(chatId)));
+
+
             } else {
                 String lang = StateManager.getLang(chatId);
                 if ("O‘zbekcha".equals(lang)) {
@@ -70,20 +81,26 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 } else {
                     sendMessage(chatId, "📄 Файл получен.");
                 }
-                return;
             }
+            return;
         }
+
 
         if (update.getMessage().hasPhoto()) {
             long chatId = update.getMessage().getChatId();
             List<PhotoSize> photos = update.getMessage().getPhoto();
             if (!photos.isEmpty()) {
                 String fileId = photos.get(photos.size() - 1).getFileId(); // берём самый большой размер
-                com.example.menu.StateManager.saveFile(chatId, fileId, "PHOTO");
+                StateManager.saveFile(chatId, fileId, "PHOTO");
             }
             if (StateManager.getState(chatId).equals("WAIT_FILE")) {
                 StateManager.setState(chatId, "PRINT_COPIES_CONFIRM");
                 executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
+            } else if (StateManager.getState(chatId).equals("INSURANCE_DOCS")) {
+                StateManager.appendDoc(chatId, "Документы получены");
+                StateManager.setState(chatId, "INSURANCE_CONFIRM");
+                executeMessage(InsuranceMenu.getConfirmMenu(chatId, StateManager.getLang(chatId)));
+
             } else {
                 String lang = StateManager.getLang(chatId);
                 if ("O‘zbekcha".equals(lang)) {
@@ -91,15 +108,15 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 } else {
                     sendMessage(chatId, "🖼️ Фото/скриншоты получены.");
                 }
-                return;
-
             }
+            return;
+
         }
 
 
         if (!update.getMessage().hasText()) return;
 
-        long chatId = update.getMessage().getChatId();
+        Long chatId = update.getMessage().getChatId();
         String username = update.getMessage().getFrom().getUserName();
         String firstName = update.getMessage().getFrom().getFirstName();
         String lastName = update.getMessage().getFrom().getLastName();
@@ -135,6 +152,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 executeMessage(LanguageMenu.getMenu(chatId));
                 break;
 
+
             case "Распечатать документ":
             case "Hujjatni chop etish":
                 StateManager.setState(chatId, "PRINT");
@@ -159,9 +177,93 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
                 break;
 
+
+            case "Отменить":
+            case "Bekor qilish":
+                StateManager.resetDoc(chatId);
+                StateManager.setState(chatId, "MAIN_MENU");
+                executeMessage(MainMenu.getMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            case "Страхование автомобиля":
+            case "Avto sug'urta":
+                StateManager.setState(chatId, "INSURANCE_TYPE");
+                executeMessage(InsuranceMenu.getInsuranceTypeMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+
+            case "Легковое Авто":
+            case "Engil Avto":
+                StateManager.appendDoc(chatId, "Тип страховки: Легковое Авто");
+                StateManager.setState(chatId, "INSURANCE_DRIVER_LIMIT");
+                executeMessage(InsuranceMenu.getPhysicalMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            case "Грузовое Авто":
+            case "Yuk Avto":
+                StateManager.appendDoc(chatId, "Тип страховки: Грузовое Авто");
+                StateManager.setState(chatId, "INSURANCE_DRIVER_LIMIT");
+                executeMessage(InsuranceMenu.getLegalMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            case "До 5-ти водителей = 160 000 сум":
+            case "5 nafar haydovchigacha = 160 000 сум":
+                StateManager.appendDoc(chatId, "Вариант: До 5 человек");
+                StateManager.setState(chatId, "INSURANCE_DOCS");
+                executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            case "Без ограничений = 320 000 сум":
+            case "Cheklanmagan = 320 000 сум":
+                StateManager.appendDoc(chatId, "Вариант: Без ограничений");
+                StateManager.setState(chatId, "INSURANCE_DOCS");
+                executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            //для ГРУЗОВЫХ
+
+            case "До 5-ти водителей (280 000 сум)":
+            case "5 ta haydovchigacha (280 000 сум)":
+                StateManager.appendDoc(chatId, "Вариант: До 5 человек");
+                StateManager.setState(chatId, "INSURANCE_DOCS");
+                executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            case "Без ограничений = 560 000 сум":
+            case "Cheklanmagan = 560 000 сум":
+                StateManager.appendDoc(chatId, "Вариант: Без ограничений");
+                StateManager.setState(chatId, "INSURANCE_DOCS");
+                executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+            case "Отправить файл":
+            case "Fayl yuborish":
+                StateManager.setState(chatId, "WAIT_FILE");
+                String langFile = StateManager.getLang(chatId);
+                if ("O‘zbekcha".equals(langFile)) {
+                    sendMessage(chatId, "📎 Iltimos, faylni yuboring (hujjat yoki foto).");
+                } else {
+                    sendMessage(chatId, "📎 Пожалуйста, отправьте файл (документ или фото).");
+                }
+                break;
+
+
             case "Подтвердить":
             case "Tasdiqlash":
-                if (state.equals("PRINT_CONFIRM")) {
+                if (state.equals("INSURANCE_CONFIRM")) {
+                    StateManager.setState(chatId, "INSURANCE_SUMMARY");
+                    String langSum = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(langSum)) {
+                        sendMessage(chatId, "✅ Ariza qabul qilindi. Ma’lumotlar administratorga yuborildi.");
+                    } else {
+                        sendMessage(chatId, "✅ Заявка принята. Данные отправлены администратору.");
+                    }
+                    sendToAdmin(chatId, username, firstName, lastName);
+                    // возврат в главное меню
+                    StateManager.setState(chatId, "MAIN");
+                    executeMessage(MainMenu.getMenu(chatId, StateManager.getLang(chatId)));
+
+                } else if (state.equals("PRINT_CONFIRM")) {
                     StateManager.setState(chatId, "PRINT_NEXT");
                     executeMessage(PrintMenu.getSecondStep(chatId, StateManager.getLang(chatId)));
                 } else if (state.equals("PRINT_CONFIRM2")) {
@@ -173,17 +275,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 }
                 break;
 
-            case "Отменить":
-            case "Bekor qilish":
-                StateManager.resetDoc(chatId);
-                StateManager.setState(chatId, "MAIN_MENU");
-                executeMessage(MainMenu.getMenu(chatId, StateManager.getLang(chatId)));
-                break;
 
             default:
                 if (state.equals("PRINT_COPIES")) {
-                    lang = StateManager.getLang(chatId);
-                    if ("O‘zbekcha".equals(lang)) {
+                    String langCopies = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(langCopies)) {
                         StateManager.appendDoc(chatId, "Nusxalar soni: " + text);
                         StateManager.setState(chatId, "WAIT_FILE");
                         sendMessage(chatId, "📎 Chop etish uchun faylni yuboring");
@@ -192,82 +288,156 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         StateManager.setState(chatId, "WAIT_FILE");
                         sendMessage(chatId, "📎 Вложите файл для печати");
                     }
+
+                } else if (state.equals("WAIT_FILE")) {
+                    StateManager.saveText(chatId, text);
+
+                    //StateManager.saveFile(chatId, text, "TEXT");
+                    StateManager.setState(chatId, "FILE_CONFIRM");
+                    String currentLang = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(currentLang)) {
+                        sendMessage(chatId, "✏️ Matn qabul qilindi. Tasdiqlaysizmi?");
+                    } else {
+                        sendMessage(chatId, "✏️ Текст получен. Подтвердите?");
+                    }
+                    executeMessage(PrintMenu.confirmStep(chatId, currentLang));
+
+                } else if (state.equals("FILE_CONFIRM")) {
+                    if (text.contains("Подтвердить") || text.contains("Tasdiqlash")) {
+                        StateManager.setState(chatId, "SUMMARY");
+                        String currentLang = StateManager.getLang(chatId);
+                        if ("O‘zbekcha".equals(currentLang)) {
+                            sendMessage(chatId, "✅ Matn tasdiqlandi. Administratorga yuborildi.");
+                        } else {
+                            sendMessage(chatId, "✅ Текст подтверждён. Отправлено администратору.");
+                        }
+                        sendToAdmin(chatId, username, firstName, lastName);
+
+                    } else if (text.contains("Отменить") || text.contains("Bekor qilish")) {
+                        StateManager.setState(chatId, "MAIN_MENU");
+                        String currentLang = StateManager.getLang(chatId);
+                        if ("O‘zbekcha".equals(currentLang)) {
+                            sendMessage(chatId, "❌ Bekor qilindi. Asosiy menyuga qaytdingiz.");
+                        } else {
+                            sendMessage(chatId, "❌ Отменено. Вы вернулись в главное меню.");
+                        }
+                        executeMessage(MainMenu.getMenu(chatId, currentLang));
+                    }
+                } else if (state.equals("INSURANCE_DOCS")) {
+                    if (update.getMessage().hasDocument()) {
+                        String fileId = update.getMessage().getDocument().getFileId();
+                        StateManager.saveFile(chatId, fileId, "DOCUMENT");
+                    } else if (update.getMessage().hasPhoto()) {
+                        List<PhotoSize> photos = update.getMessage().getPhoto();
+                        if (!photos.isEmpty()) {
+                            String fileId = photos.get(photos.size() - 1).getFileId();
+                            StateManager.saveFile(chatId, fileId, "PHOTO");
+                        }
+                    } else {
+                        executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
+                        return;
+                    }
+
+                    StateManager.appendDoc(chatId, "Документы получены");
+                    StateManager.setState(chatId, "INSURANCE_CONFIRM");
+                    executeMessage(InsuranceMenu.getConfirmMenu(chatId, StateManager.getLang(chatId)));
+
+                } else if (state.equals("INSURANCE_CONFIRM")) {
+                    StateManager.appendDoc(chatId, "Выбран пакет: " + text);
+                    StateManager.setState(chatId, "INSURANCE_SUMMARY");
+                    String langSum = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(langSum)) {
+                        sendMessage(chatId, "✅ Ariza qabul qilindi. Ma’lumotlar administratorga yuborildi.");
+                    } else {
+                        sendMessage(chatId, "✅ Заявка принята. Данные отправлены администратору.");
+                    }
+                    sendToAdmin(chatId, username, firstName, lastName);
+
                 } else {
-                     lang = StateManager.getLang(chatId);
-                    if ("O‘zbekcha".equals(lang)) {
+                    String langDef = StateManager.getLang(chatId);
+                    if ("O‘zbekcha".equals(langDef)) {
                         sendMessage(chatId, "Iltimos, menyudan tanlang.");
                     } else {
                         sendMessage(chatId, "Пожалуйста, выберите пункт меню.");
                     }
                 }
-                break;
         }
     }
 
 
-        private void sendToAdmin (Long chatId, String username, String firstName, String lastName){
-            Long adminId = config.getAdminId();
-            String userDoc = StateManager.getDoc(chatId); // тут уже есть "Количество копий: X"
+    private void sendToAdmin(Long chatId, String username, String firstName, String lastName) {
+        Long adminId = config.getAdminId();
+        String userDoc = StateManager.getDoc(chatId);
 
-            StringBuilder sb = new StringBuilder();
-            sb.append("📩 Новый заказ!\n\n");
-            sb.append("👤 Пользователь:\n");
-            sb.append("• Chat ID: ").append(chatId).append("\n");
-            sb.append("• Username: @").append(username != null ? username : "нет").append("\n");
-            sb.append("• Имя: ").append(firstName != null ? firstName : "нет").append("\n");
-            sb.append("• Фамилия: ").append(lastName != null ? lastName : "нет").append("\n\n");
-            sb.append("🧾 Параметры заказа:\n");
-            sb.append(userDoc); // здесь будет и число копий
+        // Заголовок заказа
+        StringBuilder sb = new StringBuilder();
+        sb.append("📩 Новый заказ!\n\n");
+        sb.append("👤 Пользователь:\n");
+        sb.append("• Chat ID: ").append(chatId).append("\n");
+        sb.append("• Username: @").append(username != null ? username : "нет").append("\n");
+        sb.append("• Имя: ").append(firstName != null ? firstName : "нет").append("\n");
+        sb.append("• Фамилия: ").append(lastName != null ? lastName : "нет").append("\n\n");
+        sb.append("🧾 Параметры заказа:\n");
+        sb.append(userDoc);
 
-            executeMessage(new SendMessage(adminId.toString(), sb.toString()));
+        // Отправляем админу текст с параметрами
+        executeMessage(new SendMessage(adminId.toString(), sb.toString()));
 
-            Set<String> files = com.example.menu.StateManager.getFiles(chatId);
-            String fileType = StateManager.getFileType(chatId);
-
-            if (!files.isEmpty()) {
-                for (String fId : files) {
-                    if ("DOCUMENT".equals(fileType)) {
-                        SendDocument doc = new SendDocument();
-                        doc.setChatId(adminId.toString());
-                        doc.setDocument(new InputFile(fId));
-                        executeMessage(doc);
-                    } else if ("PHOTO".equals(fileType)) {
-                        SendPhoto photo = new SendPhoto();
-                        photo.setChatId(adminId.toString());
-                        photo.setPhoto(new InputFile(fId));
-                        executeMessage(photo);
-                    }
-                }
+        // Пересылаем документы и фото
+        Set<String> files = StateManager.getFiles(chatId);
+        for (String fId : files) {
+            String type = StateManager.getFileType(chatId, fId);
+            if ("DOCUMENT".equals(type)) {
+                SendDocument doc = new SendDocument();
+                doc.setChatId(adminId.toString());
+                doc.setDocument(new InputFile(fId));
+                executeMessage(doc);
+            } else if ("PHOTO".equals(type)) {
+                SendPhoto photo = new SendPhoto();
+                photo.setChatId(adminId.toString());
+                photo.setPhoto(new InputFile(fId));
+                executeMessage(photo);
             }
         }
 
-
-        private void executeMessage (SendPhoto photo){
-            try {
-                execute(photo);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void executeMessage (SendMessage message){
-            try {
-                execute(message);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void executeMessage (SendDocument document){
-            try {
-                execute(document);
-            } catch (TelegramApiException e) {
-                e.printStackTrace();
-            }
-        }
-
-        private void sendMessage (Long chatId, String text){
-            SendMessage message = new SendMessage(chatId.toString(), text);
-            executeMessage(message);
+        // Пересылаем текстовые сообщения отдельно
+        for (String txt : StateManager.getTexts(chatId)) {
+            SendMessage msg = new SendMessage(adminId.toString(), "📝 Текст:\n" + txt);
+            executeMessage(msg);
         }
     }
+
+
+
+    private void executeMessage(SendPhoto photo) {
+        try {
+            execute(photo);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+
+    private void executeMessage(SendMessage message) {
+        try {
+            execute(message);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void executeMessage(SendDocument document) {
+        try {
+            execute(document);
+        } catch (TelegramApiException e) {
+            e.printStackTrace();
+        }
+    }
+
+    private void sendMessage(Long chatId, String text) {
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        executeMessage(message);
+    }
+}
+
+

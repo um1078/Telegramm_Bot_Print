@@ -19,7 +19,7 @@ public class ActionMenu {
             markup.setKeyboard(List.of(
                     new KeyboardRow(List.of(
                             new KeyboardButton("Распечатать документ"),
-                            new KeyboardButton("Ламинат документа")
+                            new KeyboardButton("Отправить Файл")
                     )),
                     new KeyboardRow(List.of(
                             new KeyboardButton("Страхование автомобиля"),
@@ -37,7 +37,7 @@ public class ActionMenu {
             markup.setKeyboard(List.of(
                     new KeyboardRow(List.of(
                             new KeyboardButton("Hujjatni chop etish"),
-                            new KeyboardButton("Hujjatni laminatlash")
+                            new KeyboardButton("Fail Junatish")
                     )),
                     new KeyboardRow(List.of(
                             new KeyboardButton("Avto sug'urta"),
