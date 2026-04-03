@@ -2,9 +2,11 @@ package com.example.menu;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
+import java.util.ArrayList;
 import java.util.List;
 
 public class PrintMenu {
@@ -33,6 +35,24 @@ public class PrintMenu {
             com.example.menu.StateManager.setState(chatId, "PRINT_CONFIRM");
             return message;
         }
+    }
+    public static SendMessage getFormatStep(Long chatId, String lang) {
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        KeyboardRow row = new KeyboardRow();
+        row.add(new KeyboardButton("В виде книжки"));
+        row.add(new KeyboardButton("A4 ФОРМАТА"));
+        keyboard.add(row);
+
+        keyboardMarkup.setKeyboard(keyboard);
+
+        SendMessage message = new SendMessage(chatId.toString(),
+                "O‘zbekcha".equals(lang)
+                        ? "📄 Formatni tanlang:"
+                        : "📄 Выберите формат:");
+        message.setReplyMarkup(keyboardMarkup);
+        return message;
     }
 
     // Меню подтверждения
@@ -80,7 +100,7 @@ public class PrintMenu {
             ));
             SendMessage message = new SendMessage(chatId.toString(), "Formatni tanlang:");
             message.setReplyMarkup(markup);
-            StateManager.setState(chatId, "PRINT_CONFIRM2");
+            com.example.menu.StateManager.setState(chatId, "PRINT_CONFIRM2");
             return message;
         }
     }
@@ -89,14 +109,32 @@ public class PrintMenu {
     public static SendMessage getCopiesStep(Long chatId, String lang) {
         String text;
         if ("Русский".equals(lang)) {
-            text = "Введите количество копий ЦИФРОЙ:";
+            text = "Введите СКОЛЬКО копий каждого файла ЦИФРОЙ:";
         } else if ("O‘zbekcha".equals(lang)) {
             text = "Nusxalar sonini RAKAM bilan kiriting:";
         } else {
             text = "Введите количество копий:";
         }
-        return new SendMessage(chatId.toString(), text);
+
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        // 🔥 Убираем старое меню, чтобы осталась только строка ввода
+        message.setReplyMarkup(new ReplyKeyboardRemove(true));
+        return message;
     }
+//    public static SendMessage getCopiesStep(Long chatId, String lang) {
+//        String text;
+//        if ("Русский".equals(lang)) {
+//            text = "Введите количество копий ЦИФРОЙ:";
+//        } else if ("O‘zbekcha".equals(lang)) {
+//            text = "Nusxalar sonini RAKAM bilan kiriting:";
+//        } else {
+//            text = "Введите количество копий:";
+//        }
+//        SendMessage message = new SendMessage(chatId.toString(), text);
+//        // 🔥 Убираем меню, чтобы пользователь мог ввести только цифру
+//        message.setReplyMarkup(new ReplyKeyboardRemove(true));
+//        return message;
+//    }
 
     // Финальный шаг: показать все ответы
     public static SendMessage getSummary(Long chatId, String lang) {

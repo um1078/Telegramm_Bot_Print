@@ -4,6 +4,7 @@ import com.example.config.BotConfig;
 import org.telegram.telegrambots.meta.api.methods.polls.SendPoll;
 import com.example.menu.InsuranceMenu;
 
+import com.example.menu.StateManager;
 
 import java.util.List;
 import java.util.Arrays;
@@ -45,8 +46,18 @@ public class TelegramBotService extends TelegramLongPollingBot {
     @Override
     public void onUpdateReceived(Update update) {
 
+        Long chatId = null;
+
+        if (update.hasMessage()) {
+            System.out.println("Пришло текстовое сообщение: " + update.getMessage().getText());
+        }
+        if (update.hasCallbackQuery()) {
+            System.out.println("Пришёл callback: " + update.getCallbackQuery().getData());
+        }
+        System.out.println("Текущее состояние: " + StateManager.getState(chatId));
+
         if (update.hasMessage() && update.getMessage().getNewChatMembers() != null && !update.getMessage().getNewChatMembers().isEmpty()) {
-            Long chatId = update.getMessage().getChatId();
+            chatId = update.getMessage().getChatId();
             SendPoll poll = new SendPoll();
             poll.setChatId(chatId.toString());
             poll.setQuestion("Добро пожаловать! Выберите язык интерфейса:");
@@ -61,7 +72,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
 
         if (update.getMessage().hasDocument()) {
-            Long chatId = update.getMessage().getChatId();
+            chatId = update.getMessage().getChatId();
             String fileId = update.getMessage().getDocument().getFileId();
             StateManager.saveFile(chatId, fileId, "DOCUMENT");
 
@@ -87,7 +98,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
 
         if (update.getMessage().hasPhoto()) {
-            long chatId = update.getMessage().getChatId();
+            chatId = update.getMessage().getChatId();
             List<PhotoSize> photos = update.getMessage().getPhoto();
             if (!photos.isEmpty()) {
                 String fileId = photos.get(photos.size() - 1).getFileId(); // берём самый большой размер
@@ -116,7 +127,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
         if (!update.getMessage().hasText()) return;
 
-        Long chatId = update.getMessage().getChatId();
+        chatId = update.getMessage().getChatId();
         String username = update.getMessage().getFrom().getUserName();
         String firstName = update.getMessage().getFrom().getFirstName();
         String lastName = update.getMessage().getFrom().getLastName();
@@ -164,8 +175,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
             case "Rangli chop etish":
             case "Qora-oq chop etish":
                 StateManager.appendDoc(chatId, "Тип печати: " + text);
-                StateManager.setState(chatId, "PRINT_CONFIRM");
-                executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
+                StateManager.setState(chatId, "PRINT_FORMAT");
+                executeMessage(PrintMenu.getFormatStep(chatId, StateManager.getLang(chatId)));
                 break;
 
             case "В виде книжки":
@@ -173,9 +184,11 @@ public class TelegramBotService extends TelegramLongPollingBot {
             case "Kitob shaklida":
             case "A4 FORMATI":
                 StateManager.appendDoc(chatId, "Формат: " + text);
-                StateManager.setState(chatId, "PRINT_CONFIRM2");
-                executeMessage(PrintMenu.confirmStep(chatId, StateManager.getLang(chatId)));
+                StateManager.setState(chatId, "PRINT_COPIES");
+                executeMessage(PrintMenu.getCopiesStep(chatId, StateManager.getLang(chatId)));
+                //sendMessage(chatId, "Введите количество копий ЦИФРОЙ:-1");
                 break;
+
 
 
             case "Отменить":
@@ -247,7 +260,6 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 }
                 break;
 
-
             case "Подтвердить":
             case "Tasdiqlash":
                 if (state.equals("INSURANCE_CONFIRM")) {
@@ -259,22 +271,43 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         sendMessage(chatId, "✅ Заявка принята. Данные отправлены администратору.");
                     }
                     sendToAdmin(chatId, username, firstName, lastName);
-                    // возврат в главное меню
                     StateManager.setState(chatId, "MAIN");
                     executeMessage(MainMenu.getMenu(chatId, StateManager.getLang(chatId)));
 
                 } else if (state.equals("PRINT_CONFIRM")) {
                     StateManager.setState(chatId, "PRINT_NEXT");
                     executeMessage(PrintMenu.getSecondStep(chatId, StateManager.getLang(chatId)));
+
                 } else if (state.equals("PRINT_CONFIRM2")) {
                     StateManager.setState(chatId, "PRINT_COPIES");
                     executeMessage(PrintMenu.getCopiesStep(chatId, StateManager.getLang(chatId)));
+
                 } else if (state.equals("PRINT_COPIES_CONFIRM")) {
                     executeMessage(PrintMenu.getSummary(chatId, StateManager.getLang(chatId)));
                     sendToAdmin(chatId, username, firstName, lastName);
+
+                } else if (state.equals("FILE_CONFIRM")) {
+                    System.out.println("=== FILE_CONFIRM блок активирован ===");
+                    String currentLang = StateManager.getLang(chatId);
+
+                    if ("O‘zbekcha".equals(currentLang)) {
+                        sendMessage(chatId, "✅ Matn tasdiqlandi. Administratorga yuborildi.");
+                    } else {
+                        sendMessage(chatId, "✅ Текст подтверждён. Отправлено администратору.");
+                    }
+
+                    sendToAdmin(chatId, username, firstName, lastName);
+
+                    StateManager.resetDoc(chatId);
+                    StateManager.resetTexts(chatId);
+
+                    StateManager.setState(chatId, "MAIN");
+                    executeMessage(MainMenu.getMenu(chatId, currentLang));
                 }
                 break;
 
+
+//
 
             default:
                 if (state.equals("PRINT_COPIES")) {
@@ -292,35 +325,63 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 } else if (state.equals("WAIT_FILE")) {
                     StateManager.saveText(chatId, text);
 
-                    //StateManager.saveFile(chatId, text, "TEXT");
+                    System.out.println("Меняю состояние на FILE_CONFIRM");
                     StateManager.setState(chatId, "FILE_CONFIRM");
+
                     String currentLang = StateManager.getLang(chatId);
-                    if ("O‘zbekcha".equals(currentLang)) {
-                        sendMessage(chatId, "✏️ Matn qabul qilindi. Tasdiqlaysizmi?");
-                    } else {
-                        sendMessage(chatId, "✏️ Текст получен. Подтвердите?");
-                    }
-                    executeMessage(PrintMenu.confirmStep(chatId, currentLang));
+
+                    sendMessage(chatId, currentLang.equals("O‘zbekcha")
+                            ? "✏️ Matn qabul qilindi. Tasdiqlaysizmi?"
+                            : "✏️ Текст получен. Подтвердите?");
+
+
+                    executeMessage(com.example.menu.PrintMenu.confirmStep(chatId, currentLang));
+
 
                 } else if (state.equals("FILE_CONFIRM")) {
-                    if (text.contains("Подтвердить") || text.contains("Tasdiqlash")) {
-                        StateManager.setState(chatId, "SUMMARY");
+                    System.out.println("=== FILE_CONFIRM блок активирован ===");
+                    System.out.println("Получено сообщение: '" + text + "'");
+                    System.out.println("Тексты в StateManager: " + StateManager.getTexts(chatId));
+                    System.out.println("Документ в StateManager: " + StateManager.getDoc(chatId));
+
+
+                    if (text.trim().equalsIgnoreCase("Подтвердить") || text.trim().equalsIgnoreCase("Tasdiqlash")) {
+                        System.out.println("Условие подтверждения выполнено");
+
                         String currentLang = StateManager.getLang(chatId);
+
                         if ("O‘zbekcha".equals(currentLang)) {
                             sendMessage(chatId, "✅ Matn tasdiqlandi. Administratorga yuborildi.");
                         } else {
                             sendMessage(chatId, "✅ Текст подтверждён. Отправлено администратору.");
                         }
+
+                        // Отправляем техт админу
                         sendToAdmin(chatId, username, firstName, lastName);
 
-                    } else if (text.contains("Отменить") || text.contains("Bekor qilish")) {
-                        StateManager.setState(chatId, "MAIN_MENU");
+                        // Сбрасываем данные заказа(после отправки)
+                        StateManager.resetDoc(chatId);
+                        StateManager.resetTexts(chatId);
+
+                        // Возврат в главное меню
+                        StateManager.setState(chatId, "MAIN");
+                        executeMessage(MainMenu.getMenu(chatId, currentLang));
+
+                    } else if (text.trim().equalsIgnoreCase("Отменить") || text.trim().equalsIgnoreCase("Bekor qilish")) {
+                        System.out.println("Условие отмены выполнено");
+
+                        StateManager.resetDoc(chatId);
+                        StateManager.resetTexts(chatId);
+                        StateManager.setState(chatId, "MAIN");
+
                         String currentLang = StateManager.getLang(chatId);
+
                         if ("O‘zbekcha".equals(currentLang)) {
                             sendMessage(chatId, "❌ Bekor qilindi. Asosiy menyuga qaytdingiz.");
                         } else {
                             sendMessage(chatId, "❌ Отменено. Вы вернулись в главное меню.");
                         }
+
                         executeMessage(MainMenu.getMenu(chatId, currentLang));
                     }
                 } else if (state.equals("INSURANCE_DOCS")) {
@@ -366,6 +427,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
 
     private void sendToAdmin(Long chatId, String username, String firstName, String lastName) {
+        System.out.println("sendToAdmin вызван");
         Long adminId = config.getAdminId();
         String userDoc = StateManager.getDoc(chatId);
 
@@ -401,12 +463,20 @@ public class TelegramBotService extends TelegramLongPollingBot {
         }
 
         // Пересылаем текстовые сообщения отдельно
-        for (String txt : StateManager.getTexts(chatId)) {
+
+        List<String> texts = StateManager.getTexts(chatId);
+        System.out.println("Тексты для отправки админу: " + texts);
+        for (String txt : texts) {
+            System.out.println("Отправляем текст админу: " + txt);
             SendMessage msg = new SendMessage(adminId.toString(), "📝 Текст:\n" + txt);
             executeMessage(msg);
         }
+//        for (String txt : StateManager.getTexts(chatId)) {
+//            System.out.println("Отправляем текст админу: " + txt);
+//            SendMessage msg = new SendMessage(adminId.toString(), "📝 Текст:\n" + txt);
+//            executeMessage(msg);
+//        }
     }
-
 
 
     private void executeMessage(SendPhoto photo) {

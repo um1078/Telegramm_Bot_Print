@@ -12,11 +12,36 @@ public class StateManager {
     private static final Map<Long, List<String>> textMessages = new HashMap<>();
 
     public static void saveText(Long chatId, String text) {
-        textMessages.computeIfAbsent(chatId, k -> new ArrayList<>()).add(text);
+        // Убираем пробелы и приводим к нижнему регистру
+        String normalized = text.trim().toLowerCase();
+
+        // Список служебных команд, которые не нужно сохранять
+        List<String> serviceWords = Arrays.asList(
+                "подтвердить", "отменить", "tasdiqlash", "bekor qilish"
+        );
+
+        // Если текст не является служебным словом — сохраняем
+        if (!serviceWords.contains(normalized)) {
+            textMessages.computeIfAbsent(chatId, k -> new ArrayList<>()).add(text);
+            System.out.println("Сохранён текст: " + text);
+        } else {
+            System.out.println("Игнорирован служебный текст: " + text);
+        }
     }
+
+
+//
+//    public static void saveText(Long chatId, String text) {
+//        textMessages.computeIfAbsent(chatId, k -> new ArrayList<>()).add(text);
+//    }
 
     public static List<String> getTexts(Long chatId) {
         return textMessages.getOrDefault(chatId, new ArrayList<>());
+    }
+
+    // Очистка текстов после отправки админу
+    public static void resetTexts(Long chatId) {
+        textMessages.put(chatId, new ArrayList<>());
     }
 
     // ------------------ FILE ------------------
@@ -41,6 +66,7 @@ public class StateManager {
     // ------------------ STATE ------------------
     public static void setState(Long chatId, String state) {
         userStates.put(chatId, state);
+        System.out.println("Состояние для " + chatId + " изменено на: " + state);
     }
 
     public static String getState(Long chatId) {
