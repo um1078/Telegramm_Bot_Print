@@ -1,12 +1,15 @@
 package com.example.menu;
 
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardRemove;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 public class PrintMenu {
@@ -116,11 +119,61 @@ public class PrintMenu {
             text = "Введите количество копий:";
         }
 
+        // создаём клавиатуру только с кнопкой "Отменить"
+        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+        KeyboardRow row = new KeyboardRow();
+        if ("O‘zbekcha".equals(lang)) {
+            row.add(new KeyboardButton("Bekor qilish"));
+        } else {
+            row.add(new KeyboardButton("Отменить"));
+        }
+        keyboardMarkup.setKeyboard(java.util.Collections.singletonList(row));
+        keyboardMarkup.setResizeKeyboard(true);
+//        // создаём клавиатуру только с кнопкой "Отменить"
+//        ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+//        KeyboardRow row = new KeyboardRow();
+//        row.add(new KeyboardButton("Отменить")); // или "Bekor qilish" для узбекского
+//        keyboardMarkup.setKeyboard(java.util.Collections.singletonList(row));
+//        keyboardMarkup.setResizeKeyboard(true);
+
+
         SendMessage message = new SendMessage(chatId.toString(), text);
         // 🔥 Убираем старое меню, чтобы осталась только строка ввода
         message.setReplyMarkup(new ReplyKeyboardRemove(true));
         return message;
     }
+    public static SendMessage getSendFileMenu(Long chatId, String lang) {
+        String text;
+        String buttonText;
+
+        if ("Русский".equals(lang)) {
+            text = "📎 Для отправки файла нажмите кнопку ниже:";
+            buttonText = "Отправка Файла";
+        } else if ("O‘zbekcha".equals(lang)) {
+            text = "📎 Fayl yuborish uchun tugmani bosing:";
+            buttonText = "Failni Junatish"; // 🔥 узбекский вариант
+        } else {
+            text = "📎 Send your file:";
+            buttonText = "Send File";
+        }
+
+        InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> rows = new ArrayList<>();
+
+        InlineKeyboardButton linkButton = new InlineKeyboardButton();
+        linkButton.setText(buttonText);
+        linkButton.setUrl("https://t.me/BextarinUTFS");
+
+        rows.add(Collections.singletonList(linkButton));
+        inlineKeyboard.setKeyboard(rows);
+
+        SendMessage message = new SendMessage(chatId.toString(), text);
+        message.setReplyMarkup(inlineKeyboard);
+        return message;
+    }
+
+
+    //linkButton.setText("Faylni Junatish"); // текст кнопки
 //    public static SendMessage getCopiesStep(Long chatId, String lang) {
 //        String text;
 //        if ("Русский".equals(lang)) {

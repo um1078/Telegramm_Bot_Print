@@ -20,16 +20,26 @@ import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
+import org.telegram.telegrambots.bots.DefaultBotOptions;
+
 
 //import static com.example.menu.StateManager.fileTypes;
 
 //import static com.example.menu.StateManager.fileTypes;
 
-@Service
+//@Service
 public class TelegramBotService extends TelegramLongPollingBot {
     private final BotConfig config;
 
+
+    // Конструктор без прокси (если нужно)
     public TelegramBotService(BotConfig config) {
+        super(); // 👈 важно
+        this.config = config;
+    }
+    // Конструктор с прокси (для ручного создания в BotApplication)
+    public TelegramBotService(BotConfig config, DefaultBotOptions options) {
+        super(options); // передаём настройки прокси
         this.config = config;
     }
 
@@ -157,6 +167,12 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 executeMessage(ActionMenu.getMenu(chatId, lang));
                 break;
 
+            case "Отправка Файла":
+            case "Failni Junatish":
+                executeMessage(PrintMenu.getSendFileMenu(chatId, StateManager.getLang(chatId)));
+                break;
+
+
             case "Закончить":
             case "Tugatish":
                 StateManager.setState(chatId, "LANGUAGE");
@@ -271,6 +287,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         sendMessage(chatId, "✅ Заявка принята. Данные отправлены администратору.");
                     }
                     sendToAdmin(chatId, username, firstName, lastName);
+                    StateManager.resetFiles(chatId); // 👈 теперь очищаем и файлы
+
                     StateManager.setState(chatId, "MAIN");
                     executeMessage(MainMenu.getMenu(chatId, StateManager.getLang(chatId)));
 
@@ -285,6 +303,8 @@ public class TelegramBotService extends TelegramLongPollingBot {
                 } else if (state.equals("PRINT_COPIES_CONFIRM")) {
                     executeMessage(PrintMenu.getSummary(chatId, StateManager.getLang(chatId)));
                     sendToAdmin(chatId, username, firstName, lastName);
+                    StateManager.resetFiles(chatId); // 👈 теперь очищаем и файлы
+
 
                 } else if (state.equals("FILE_CONFIRM")) {
                     System.out.println("=== FILE_CONFIRM блок активирован ===");
@@ -300,6 +320,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
                     StateManager.resetDoc(chatId);
                     StateManager.resetTexts(chatId);
+                    StateManager.resetFiles(chatId); // 👈 теперь очищаем и файлы
 
                     StateManager.setState(chatId, "MAIN");
                     executeMessage(MainMenu.getMenu(chatId, currentLang));
@@ -335,6 +356,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
                             : "✏️ Текст получен. Подтвердите?");
 
 
+
                     executeMessage(com.example.menu.PrintMenu.confirmStep(chatId, currentLang));
 
 
@@ -362,6 +384,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         // Сбрасываем данные заказа(после отправки)
                         StateManager.resetDoc(chatId);
                         StateManager.resetTexts(chatId);
+                        StateManager.resetFiles(chatId); // 👈 теперь очищаем и файлы
 
                         // Возврат в главное меню
                         StateManager.setState(chatId, "MAIN");
@@ -372,6 +395,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
                         StateManager.resetDoc(chatId);
                         StateManager.resetTexts(chatId);
+                        StateManager.resetFiles(chatId); // 👈 теперь очищаем и файлы
                         StateManager.setState(chatId, "MAIN");
 
                         String currentLang = StateManager.getLang(chatId);
@@ -384,26 +408,26 @@ public class TelegramBotService extends TelegramLongPollingBot {
 
                         executeMessage(MainMenu.getMenu(chatId, currentLang));
                     }
-                } else if (state.equals("INSURANCE_DOCS")) {
-                    if (update.getMessage().hasDocument()) {
-                        String fileId = update.getMessage().getDocument().getFileId();
-                        StateManager.saveFile(chatId, fileId, "DOCUMENT");
-                    } else if (update.getMessage().hasPhoto()) {
-                        List<PhotoSize> photos = update.getMessage().getPhoto();
-                        if (!photos.isEmpty()) {
-                            String fileId = photos.get(photos.size() - 1).getFileId();
-                            StateManager.saveFile(chatId, fileId, "PHOTO");
-                        }
-                    } else {
-                        executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
-                        return;
-                    }
-
-                    StateManager.appendDoc(chatId, "Документы получены");
-                    StateManager.setState(chatId, "INSURANCE_CONFIRM");
-                    executeMessage(InsuranceMenu.getConfirmMenu(chatId, StateManager.getLang(chatId)));
-
-                } else if (state.equals("INSURANCE_CONFIRM")) {
+//                } else if (state.equals("INSURANCE_DOCS")) {
+//                    if (update.getMessage().hasDocument()) {
+//                        String fileId = update.getMessage().getDocument().getFileId();
+//                        StateManager.saveFile(chatId, fileId, "DOCUMENT");
+//                    } else if (update.getMessage().hasPhoto()) {
+//                        List<PhotoSize> photos = update.getMessage().getPhoto();
+//                        if (!photos.isEmpty()) {
+//                            String fileId = photos.get(photos.size() - 1).getFileId();
+//                            StateManager.saveFile(chatId, fileId, "PHOTO");
+//                        }
+//                    } else {
+//                        executeMessage(InsuranceMenu.getDocsMenu(chatId, StateManager.getLang(chatId)));
+//                        return;
+//                    }
+//
+//                    StateManager.appendDoc(chatId, "Документы получены");
+//                    StateManager.setState(chatId, "INSURANCE_CONFIRM");
+//                    executeMessage(InsuranceMenu.getConfirmMenu(chatId, StateManager.getLang(chatId)));
+//
+//                } else if (state.equals("INSURANCE_CONFIRM")) {
                     StateManager.appendDoc(chatId, "Выбран пакет: " + text);
                     StateManager.setState(chatId, "INSURANCE_SUMMARY");
                     String langSum = StateManager.getLang(chatId);
@@ -413,6 +437,7 @@ public class TelegramBotService extends TelegramLongPollingBot {
                         sendMessage(chatId, "✅ Заявка принята. Данные отправлены администратору.");
                     }
                     sendToAdmin(chatId, username, firstName, lastName);
+                    StateManager.resetFiles(chatId); // 👈 теперь очищаем и файлы
 
                 } else {
                     String langDef = StateManager.getLang(chatId);

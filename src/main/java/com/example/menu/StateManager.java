@@ -28,6 +28,11 @@ public class StateManager {
             System.out.println("Игнорирован служебный текст: " + text);
         }
     }
+    // Очистка файлов после отправки админу
+    public static void resetFiles(Long chatId) {
+        fileIds.put(chatId, new HashSet<>());     // очищаем список fileId
+        fileTypes.put(chatId, new HashMap<>());   // очищаем типы файлов
+    }
 
 
 //
