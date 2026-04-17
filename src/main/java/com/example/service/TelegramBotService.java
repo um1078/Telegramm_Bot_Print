@@ -6,6 +6,7 @@ import com.example.menu.InsuranceMenu;
 
 import com.example.menu.StateManager;
 
+import java.io.InputStream;
 import java.util.List;
 import java.util.Arrays;
 import java.util.Set;
@@ -19,6 +20,9 @@ import org.telegram.telegrambots.meta.api.methods.send.SendPhoto;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.PhotoSize;
 import org.telegram.telegrambots.meta.api.objects.Update;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 import org.telegram.telegrambots.bots.DefaultBotOptions;
 
@@ -57,6 +61,85 @@ public class TelegramBotService extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
 
         Long chatId = null;
+        //Ремонт компютеров
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            String text = update.getMessage().getText();
+            chatId = update.getMessage().getChatId();
+
+            if ("Ремонт компьютера/принтера".equals(text) || "Kompyuter/Printer ta'miri".equals(text)) {
+
+                // 1. Отправляем картинку из ресурсов
+                InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/repair.png");
+                if (imageStream != null) {
+                    SendPhoto photo = new SendPhoto();
+                    photo.setChatId(chatId.toString());
+                    photo.setPhoto(new InputFile(imageStream, "repair.png"));
+                    photo.setCaption("Услуга ремонта компьютеров и принтеров \n(тел):99 705 39 07\n Komputer va Printerlarni ta`mirlash");
+                   // photo.setCaption2("Услуга ремонта компьютеров и принтеров (тел):99 705 39 07");
+                    executeMessage(photo);
+                }
+
+                // 2. Меню с одной кнопкой "Главное меню"
+                ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+                keyboardMarkup.setResizeKeyboard(true);
+                keyboardMarkup.setOneTimeKeyboard(false);
+
+                KeyboardRow row = new KeyboardRow();
+                row.add(new KeyboardButton("Главное меню"));
+                keyboardMarkup.setKeyboard(List.of(row));
+
+                SendMessage message = new SendMessage(chatId.toString(), "Для возврата нажмите кнопку:\nBosh saxivaga utish");
+                message.setReplyMarkup(keyboardMarkup);
+                executeMessage(message);
+
+                return;
+            }
+
+            if ("Главное меню".equals(text)) {
+                executeMessage(ActionMenu.getMenu(chatId, StateManager.getLang(chatId)));
+                return;
+            }
+        }
+
+        // Блок для кнопки Сим карты
+        InputStream imageStream = getClass().getClassLoader().getResourceAsStream("images/tarifs.png");
+        if (update.hasMessage() && update.getMessage().hasText()) {
+            String text = update.getMessage().getText();
+            chatId = update.getMessage().getChatId();
+            System.out.println("Загружаю Тарифы");
+
+            if ("Подключение Сим карты".equals(text) || "SIM karta ulash".equals(text)) {
+
+                System.out.println("ok");
+                // 1. Отправляем картинку
+                SendPhoto photo = new SendPhoto();
+                photo.setChatId(chatId.toString());
+                photo.setPhoto(new InputFile(imageStream, "tarifs.png")); // 👉 сюда вставь реальную ссылку или fileId
+                photo.setCaption("Информация о Тарифах \nTariflar buicha MA`LUMOT\n(tel)99 705 39 07");
+                executeMessage(photo);
+
+                // 2. Меню с одной кнопкой "Главное меню"
+                ReplyKeyboardMarkup keyboardMarkup = new ReplyKeyboardMarkup();
+                keyboardMarkup.setResizeKeyboard(true);
+                keyboardMarkup.setOneTimeKeyboard(false);
+
+                KeyboardRow row = new KeyboardRow();
+                row.add(new KeyboardButton("Главное меню"));
+                keyboardMarkup.setKeyboard(List.of(row));
+
+                SendMessage message = new SendMessage(chatId.toString(), "Для возврата нажмите кнопку:\nBosh saxivaga utish");
+                message.setReplyMarkup(keyboardMarkup);
+                executeMessage(message);
+
+                return; // чтобы не провалиться дальше
+            }
+
+            if ("Главное меню".equals(text)) {
+                // Возврат в основное меню
+                executeMessage(ActionMenu.getMenu(chatId, StateManager.getLang(chatId)));
+                return;
+            }
+        }
 
         if (update.hasMessage()) {
             System.out.println("Пришло текстовое сообщение: " + update.getMessage().getText());
